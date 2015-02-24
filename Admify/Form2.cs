@@ -103,28 +103,22 @@ namespace Admify
         public void executeFile(string file) {
             // The process is started with the received credentials
             // this works fine as along as an executable is started
-            // if you want to start anything else (lnk file, etc) this will only work without credentials
-            // to circumvent this the mshta exe is called with vbscript code as parameter which uses a simple wscript.run
-            // this horrible workaround is the only true way to call arbitrary files without parsing them for ages
+            // if you want to start anything else (lnk file, etc) this will only work without credentials because using ShellExecute only works without them
+            // to circumvent this I wrote a special wrapper in C++ that takes command line arguments and executes them. It also maps Z:
             // otherwise there has to be a handler for lnks, a special one for msi installer lnks and a third one for file
-            // this only works with internet explorer installed
-            //code for testing in cmd: mshta vbscript:Execute("CreateObject (""WScript.Shell"").Run ""cmd.exe"", ,False:Close")
+
             Process proc = new Process {
                 StartInfo = {
                     UseShellExecute = false,
-                    FileName = "mshta.exe",
+                    FileName = @"C:\Program Files (x86)\Admify\ShellExecuteProxy.exe",
                     UserName = userName,
                     Domain = "tilak",
                     Password = GetSecureString(userPwd),
-                    WorkingDirectory = "C:\\",
-                    // the arguments code needs 6 pairs of escaped " the reason is 1 pair because it is a string, 1 additional pair because the path could include spaces,
-                    // that 2nd pair will be interpreted in vbscript, where this is is escaped with an additional "
-                    // those 3 " will all be parsed by mshta which ALSO escapes all " with an additional " so they are doubled to 6
-                    // finally they have to escaped with \ because of c# syntax
-                    // Before the File is executed Z: is always mapped to allow calls with "default shortcuts" we often use
-                    // Multiline vbscript commands in a single line are seperated by :
-                    Arguments = "vbscript:Execute(\"CreateObject(\"\"WScript.Network\"\").MapNetworkDrive \"\"Z:\"\", \"\"\\\\tilak\\share\\appl\"\", False:CreateObject (\"\"WScript.Shell\"\").Run \"\"\"\"\"\"" + file + "\"\"\"\"\"\", ,False:Close\")"
-                    // Arguments = "vbscript:Execute(\"CreateObject (\"\"WScript.Shell\"\").Run \"\"\"\"\"\"" + file + "\"\"\"\"\"\", ,False:Close\")"
+
+                    WorkingDirectory = @"C:\",                   
+
+                    // Arguments is only a string so it needs escaped " in case of spaces
+                    Arguments = "\"" + file  + "\""
                 }
             };
             proc.Start();
